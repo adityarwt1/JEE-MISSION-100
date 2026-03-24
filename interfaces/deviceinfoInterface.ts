@@ -20,6 +20,8 @@ export interface BatteryModel {
   maxCapacity?: number;
   model?: string;
   percent?: number;
+  serial:string
+  manufacturer:string
 }
 
 export interface Bios {

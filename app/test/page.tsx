@@ -229,7 +229,7 @@ export default function App() {
           <ul className="space-y-1 text-sm mt-4">
             {deviceInfo.battery.model && <li>Battery Model: {deviceInfo.battery.model}</li>}
             {deviceInfo.battery.manufacturer && <li>Battery Manufacturer: {deviceInfo.battery.manufacturer}</li>}
-            {deviceInfo.battery.serial && <li>Battery Serial: {deviceInfo.battery.serial}</li>}
+            {deviceInfo.battery.serial && <li>Battery Serial: {deviceInfo.battery?.serial}</li>}
             {deviceInfo.battery.designedCapacity && <li>Designed Capacity: {deviceInfo.battery.designedCapacity} mWh</li>}
             {deviceInfo.battery.maxCapacity && <li>Max Capacity: {deviceInfo.battery.maxCapacity} mWh</li>}
             {deviceInfo.battery.currentCapacity && <li>Current Capacity: {deviceInfo.battery.currentCapacity} mWh</li>}

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import si from 'systeminformation';
-import type { DeviceInfoInterface , } from '@/interfaces/deviceinfoInterface';
 
 export const runtime = 'nodejs';
 
@@ -43,9 +42,9 @@ export async function GET(req: NextRequest) {
     const memLayout = await safeCall(() => si.memLayout());
     const os = await safeCall(() => si.osInfo());
     const system = await safeCall(() => si.system());
-    const time = await safeCall(() => si.time());
+    const time =  si.time()
 
-    const payload: Partial<DeviceInfoInterface> = {
+    const payload = {
       audio,
       baseboard ,
       battery,
