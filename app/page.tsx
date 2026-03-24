@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { DeviceInfoInterface } from "@/interfaces/deviceinfoInterface";
@@ -13,134 +13,174 @@ const formatBytes = (bytes?: number) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-const HomePage = () => {
+const DataRow = ({ label, value }: { label: string; value: string | number | boolean | undefined | null }) => {
+  if (value === undefined || value === null || value === "") return null;
+  return (
+    <div className="flex justify-between gap-4 border-b border-white/5 py-1.5 last:border-0">
+      <span className="text-white/50 font-medium text-[11px] uppercase tracking-wider">{label}</span>
+      <span className="text-white text-right font-mono text-[12px]">{String(value)}</span>
+    </div>
+  );
+};
+
+export default function App() {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfoInterface | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInfo = async () => {
-      setLoading(true);
-      setError(null);
-
       try {
         const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: DeviceInfoInterface = await res.json();
         setDeviceInfo(json);
       } catch (err) {
-        setError(`Failed to load info: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchInfo();
   }, []);
 
-  const totalRam = useMemo(() => {
-    if (!deviceInfo?.memLayout?.length) return undefined;
-    const total = deviceInfo.memLayout.reduce((sum, item) => sum + (item.size ?? 0), 0);
-    return total;
-  }, [deviceInfo]);
+  const totalRam = useMemo(() => deviceInfo?.memLayout?.reduce((sum, item) => sum + (item.size ?? 0), 0), [deviceInfo]);
+  const totalStorage = useMemo(() => deviceInfo?.diskLayout?.reduce((sum, item) => sum + (item.size ?? 0), 0), [deviceInfo]);
 
-  const totalStorage = useMemo(() => {
-    if (!deviceInfo?.diskLayout?.length) return undefined;
-    const total = deviceInfo.diskLayout.reduce((sum, item) => sum + (item.size ?? 0), 0);
-    return total;
-  }, [deviceInfo]);
+  // FIXED: Consistent card height and theme matching
+  const cardStyle = "h-[480px] flex flex-col p-6 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 shadow-lg text-white";
+  const scrollArea = "flex-1 overflow-y-auto pr-2 custom-scroll";
 
-  const firstGpu = deviceInfo?.graphics?.controllers?.[0];
-
-  const cardStyle = "bg-[rgba(0,0,0,0.45)] backdrop-blur-lg border border-white/20 rounded-2xl p-5 shadow-lg shadow-black/20 text-white";
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-gradient-to-br from-zinc-900 to-slate-700 grid grid-cols-1 md:grid-cols-3 gap-6 p-10">
+        {[...Array(6)].map((_, i) => <div key={i} className={`${cardStyle} animate-pulse bg-white/5`} />)}
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen p-6" style={{ background: "#e0e0e0" }}>
-      <div className="mx-auto max-w-7xl">
-        <h1 className="text-3xl font-bold mb-4 text-left text-slate-900">Device Info Dashboard</h1>
-        {loading && (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-28 rounded-2xl bg-slate-300 animate-pulse" />
-            ))}
+    <div className="w-full min-h-screen bg-gradient-to-br from-zinc-900 to-slate-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-10 font-sans">
+      
+      {/* Global CSS for the scrollbar to match the theme */}
+      <style jsx global>{`
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+      `}</style>
+
+      {/* 1. CPU Card */}
+      <div className={cardStyle}>
+        <h2 className="text-2xl font-bold tracking-tight border-b border-white/20 pb-2 mb-4">CPU</h2>
+        <div className={scrollArea}>
+          <DataRow label="Brand" value={deviceInfo?.cpu?.brand} />
+          <DataRow label="Manufacturer" value={deviceInfo?.cpu?.manufacturer} />
+          <DataRow label="Cores" value={deviceInfo?.cpu?.cores} />
+          <DataRow label="Logical" value={deviceInfo?.cpu?.physicalCores} />
+          <DataRow label="Speed" value={deviceInfo?.cpu?.speed ? `${deviceInfo.cpu.speed} GHz` : undefined} />
+          <div className="mt-4 p-3 bg-black/10 rounded text-[10px] opacity-40 italic break-all">
+            {deviceInfo?.cpu?.flags}
           </div>
-        )}
-
-        {error && <p className="text-red-600 font-semibold">{error}</p>}
-
-        {!loading && !error && deviceInfo && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">Storage</h2>
-                <p className="text-sm text-slate-200">Total storage: {formatBytes(totalStorage)}</p>
-                <ul className="mt-3 space-y-1 text-sm">
-                  {deviceInfo.diskLayout?.map((disk, idx) => (
-                    <li key={idx} className="rounded-md bg-white/10 p-2">
-                      <b>{disk.name ?? disk.interfaceType ?? `Disk ${idx + 1}`}</b>
-                      <div>{disk.serialNumber ?? "No serial"}</div>
-                      <div>Size: {formatBytes(disk.size)}</div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">CPU</h2>
-                <p className="text-sm">Brand: {deviceInfo.cpu?.brand ?? "unknown"}</p>
-                <p className="text-sm">Cores: {deviceInfo.cpu?.cores ?? "unknown"}</p>
-                <p className="text-sm">Speed: {deviceInfo.cpu?.speed ? `${deviceInfo.cpu.speed} GHz` : "unknown"}</p>
-                <p className="text-sm mt-2">Model: {deviceInfo.cpu?.model ?? "unknown"}</p>
-              </section>
-
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">GPU</h2>
-                <p className="text-sm">Name: {firstGpu?.name ?? "unknown"}</p>
-                <p className="text-sm">Vendor: {firstGpu?.vendor ?? "unknown"}</p>
-                <p className="text-sm">Memory total: {formatBytes(firstGpu?.memoryTotal)}</p>
-                <p className="text-sm">Driver: {firstGpu?.driverVersion ?? "unknown"}</p>
-              </section>
-
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">RAM</h2>
-                <p className="text-sm">Total RAM: {formatBytes(totalRam)}</p>
-                <ul className="mt-3 space-y-1 text-sm">
-                  {deviceInfo.memLayout?.map((mem, idx) => (
-                    <li key={idx} className="rounded-md bg-white/10 p-2">
-                      <div>Manufacturer: {mem.manufacturer ?? "unknown"}</div>
-                      <div>Size: {formatBytes(mem.size)}</div>
-                      <div>Type: {mem.type ?? "unknown"}</div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">Author / System</h2>
-                <p className="text-sm">Hostname: {deviceInfo.os?.hostname ?? "unknown"}</p>
-                <p className="text-sm">OS: {deviceInfo.os?.platform ?? "unknown"} {deviceInfo.os?.distro ?? ""}</p>
-                <p className="text-sm">User: {deviceInfo.os?.fqdn ?? "unknown"}</p>
-                <p className="text-sm">Serial: {deviceInfo.system?.serial ?? "unknown"}</p>
-              </section>
-
-              <section className={cardStyle}>
-                <h2 className="text-xl font-semibold mb-2">Time</h2>
-                <p className="text-sm">Uptime: {deviceInfo.time?.uptime ?? 0} sec</p>
-                <p className="text-sm">Timezone: {deviceInfo.time?.timezoneName ?? deviceInfo.time?.timezone ?? "unknown"}</p>
-              </section>
-            </div>
-
-            <section className={`${cardStyle} p-6`}>
-              <h2 className="text-xl font-semibold mb-2">Full API payload</h2>
-              <pre className="text-xs overflow-auto max-h-96 bg-black/30 p-3 rounded-lg">
-                {JSON.stringify(deviceInfo, null, 2)}
-              </pre>
-            </section>
-          </>
-        )}
+        </div>
       </div>
-    </main>
-  );
-};
 
-export default HomePage;
+      {/* 2. GPU Card */}
+      <div className={cardStyle}>
+        <h2 className="text-2xl font-bold tracking-tight border-b border-white/20 pb-2 mb-4">GPU & Display</h2>
+        <div className={scrollArea}>
+          {deviceInfo?.graphics?.controllers?.map((gpu, i) => (
+            <div key={i} className="mb-4 space-y-1 bg-black/20 p-3 rounded-xl border border-white/5">
+              <DataRow label="Model" value={gpu.model} />
+              <DataRow label="Temp" value={gpu.temperatureGpu ? `${gpu.temperatureGpu}°C` : 'N/A'} />
+              <DataRow label="Power" value={gpu.powerDraw ? `${gpu.powerDraw}W` : undefined} />
+              <DataRow label="VRAM" value={formatBytes(gpu.memoryTotal)} />
+            </div>
+          ))}
+          {deviceInfo?.graphics?.displays?.map((disp, i) => (
+            <div key={i} className="mt-2 pt-2 border-t border-white/10">
+              <DataRow label={`Display ${i+1}`} value={`${disp.currentResX}x${disp.currentResY} @ ${disp.currentRefreshRate}Hz`} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. Storage Card */}
+      <div className={cardStyle}>
+        <div className="flex justify-between items-end border-b border-white/20 pb-2 mb-4">
+          <h2 className="text-2xl font-bold tracking-tight">Storage</h2>
+          <span className="text-xs font-mono text-emerald-400">{formatBytes(totalStorage)}</span>
+        </div>
+        <div className={scrollArea}>
+          {deviceInfo?.diskLayout?.map((disk, i) => (
+            <div key={i} className="mb-2 p-3 bg-white/5 rounded-xl border border-white/5">
+              <DataRow label="Name" value={disk.name} />
+              <DataRow label="Type" value={disk.type} />
+              <DataRow label="Size" value={formatBytes(disk.size)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. RAM Card */}
+      <div className={cardStyle}>
+        <div className="flex justify-between items-end border-b border-white/20 pb-2 mb-4">
+          <h2 className="text-2xl font-bold tracking-tight">RAM</h2>
+          <span className="text-xs font-mono text-cyan-400">{formatBytes(totalRam)}</span>
+        </div>
+        <div className={scrollArea}>
+          {deviceInfo?.memLayout?.map((mem, i) => (
+            <div key={i} className="mb-2 p-3 bg-white/5 rounded-xl">
+              <DataRow label={`Slot ${i+1}`} value={`${mem.type} ${mem.clockSpeed}MHz`} />
+              <DataRow label="Manufacturer" value={mem.manufacturer} />
+              <DataRow label="Size" value={formatBytes(mem.size)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. System & Bios Card - FIXED SCROLL & MATCHING THEME */}
+      <div className={cardStyle}>
+        <h2 className="text-2xl font-bold tracking-tight border-b border-white/20 pb-2 mb-4">System & Bios</h2>
+        <div className={scrollArea}>
+          <section className="mb-6">
+            <h3 className="text-white/30 uppercase text-[10px] font-bold mb-2">OS & Host</h3>
+            <DataRow label="Distro" value={deviceInfo?.os?.distro} />
+            <DataRow label="Hostname" value={deviceInfo?.os?.hostname} />
+          </section>
+          <section className="mb-6">
+            <h3 className="text-white/30 uppercase text-[10px] font-bold mb-2">Motherboard</h3>
+            <DataRow label="Model" value={deviceInfo?.baseboard?.model} />
+            <DataRow label="BIOS Ver" value={deviceInfo?.bios?.version} />
+          </section>
+          <section className="mb-6">
+            <h3 className="text-white/30 uppercase text-[10px] font-bold mb-2">Battery</h3>
+            <DataRow label="Status" value={deviceInfo?.battery?.isCharging ? "Charging" : "Discharging"} />
+            <DataRow label="Percent" value={deviceInfo?.battery?.percent ? `${deviceInfo.battery.percent}%` : "N/A"} />
+          </section>
+          <section>
+            <h3 className="text-white/30 uppercase text-[10px] font-bold mb-2">Audio</h3>
+            {deviceInfo?.audio?.map((a, i) => (
+              <DataRow key={i} label={`Audio ${i+1}`} value={a.name} />
+            ))}
+          </section>
+        </div>
+      </div>
+
+      {/* 6. Uptime Card */}
+      <div className={cardStyle}>
+        <h2 className="text-2xl font-bold tracking-tight border-b border-white/20 pb-2 mb-4">Uptime</h2>
+        <div className="flex-1 flex flex-col justify-center items-center">
+          <div className="text-5xl font-mono font-bold text-white tracking-tighter drop-shadow-md">
+            {deviceInfo?.time?.uptime ? `${Math.floor(deviceInfo.time.uptime / 3600)}h` : "0h"}
+          </div>
+          <div className="text-white/40 text-lg font-mono">
+            {deviceInfo?.time?.uptime ? `${Math.floor((deviceInfo.time.uptime % 3600) / 60)}m ${deviceInfo.time.uptime % 60}s` : "0m 0s"}
+          </div>
+        </div>
+        <div className="mt-auto pt-4 border-t border-white/10">
+          <DataRow label="Local Time" value={deviceInfo?.time?.current ? new Date(deviceInfo.time.current * 1000).toLocaleTimeString() : undefined} />
+        </div>
+      </div>
+
+    </div>
+  );
+}
